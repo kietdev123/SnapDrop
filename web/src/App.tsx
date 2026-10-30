@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AttachHubProvider } from './attach/AttachHub'
 import { AttachmentBox } from './attach/AttachmentBox'
+import { AutoPaste } from './attach/AutoPaste'
+import { useClipboardWatcher, type ClipStatus } from './attach/useClipboardWatcher'
 import { Modal } from './Modal'
 import { ROLES, type Destination, type Role } from './data'
 import { DestinationPicker } from './examples/DestinationPicker'
@@ -9,6 +11,14 @@ import { TicketList } from './examples/TicketList'
 
 type Tab = 'vi-du-1' | 'vi-du-2'
 type Pending = { id: string; file: File; url: string }
+
+const STATUS_TEXT: Record<ClipStatus, string> = {
+  checking: '',
+  prompt: '',
+  granted: 'Tự dán ảnh vừa copy: đang bật',
+  denied: 'Đã chặn quyền đọc clipboard – bật lại trong cài đặt trang',
+  unsupported: 'Trình duyệt chưa hỗ trợ tự gợi ý – dùng Ctrl/⌘ + V',
+}
 
 const readTab = (): Tab => (location.hash === '#vi-du-2' ? 'vi-du-2' : 'vi-du-1')
 
@@ -22,6 +32,7 @@ export default function App() {
   const [pending, setPending] = useState<Pending[]>([])
   const [recent, setRecent] = useState(['YC-1023', 'YC-1019'])
   const [toast, setToast] = useState<string | null>(null)
+  const clip = useClipboardWatcher()
 
   const bannerThumb = useMemo(() => (orphan ? URL.createObjectURL(orphan[0]) : ''), [orphan])
 
@@ -65,7 +76,7 @@ export default function App() {
   const targetTitle = (d: Destination) => (d.kind === 'ticket' ? `Bình luận vào ${d.ticket.code}` : d.create.label)
 
   return (
-    <AttachHubProvider onOrphanImages={onOrphanImages}>
+    <AttachHubProvider onOrphanImages={onOrphanImages} onPasted={clip.markFilesHandled}>
       <header className="topbar">
         <span className="brand">📋 SnapDrop</span>
         <nav>
@@ -76,6 +87,15 @@ export default function App() {
             Ví dụ 2 · Không có ô đính kèm
           </a>
         </nav>
+        {clip.status === 'prompt' ? (
+          <button className="chip" onClick={clip.enable} title="Cho phép trang đọc clipboard để tự dán ảnh vừa copy">
+            🔔 Bấm bất kỳ đâu để bật tự dán ảnh
+          </button>
+        ) : (
+          STATUS_TEXT[clip.status] && (
+            <span className={`clip-status ${clip.status}`}>{STATUS_TEXT[clip.status]}</span>
+          )
+        )}
         <label className="role">
           Vai trò
           <select value={role} onChange={(e) => setRole(e.target.value as Role)}>
@@ -104,7 +124,7 @@ export default function App() {
         <div className="banner" role="status">
           <img src={bannerThumb} alt="" />
           <span>
-            Bạn vừa dán {orphan.length} ảnh —{' '}
+            {orphan.length} ảnh chưa đính kèm —{' '}
             <button className="link strong" onClick={() => setPickerOpen(true)}>
               Đính kèm vào…
             </button>
@@ -114,6 +134,16 @@ export default function App() {
           </button>
         </div>
       )}
+
+      <AutoPaste
+        suggestion={clip.suggestion}
+        hidden={pickerOpen}
+        onHandled={clip.markHandled}
+        onChooseDestination={(file) => {
+          setOrphan([file])
+          setPickerOpen(true)
+        }}
+      />
 
       {pickerOpen && orphan && (
         <DestinationPicker

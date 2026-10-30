@@ -17,6 +17,19 @@ Demo luồng **gợi ý đính kèm ảnh vừa copy** (chi tiết bài toán: [
 
 ## Web
 
+**Tự dán ảnh vừa copy (Chrome / Edge):** lần đầu bấm hoặc gõ phím bất kỳ đâu trên trang,
+Chrome hỏi quyền đọc clipboard (bắt buộc, trình duyệt không cho bỏ qua) – chọn **Cho phép** một lần.
+Từ đó, mỗi khi quay lại tab (hoặc copy ảnh ngay trong trang):
+- Trang có ô đính kèm → ảnh được **tự dán thẳng vào ô** (ô đang focus → modal đang mở → ô chính),
+  hiện thông báo kèm nút **Hoàn tác** trong 6 giây.
+- Trang không có ô → popup có thumbnail **"Đính kèm vào…"** → màn hình chọn đích đến.
+
+Giống mobile: chỉ gợi ý ảnh copy trong 5 phút gần đây; ảnh đã dán / đã bấm ✕ / đã tự Ctrl+V
+được ghi nhớ (theo SHA-256, lưu `localStorage`) để không gợi ý lại; clipboard đổi sang chữ thì popup ẩn.
+Firefox / Safari không cho đọc clipboard nếu người dùng không thao tác → chỉ có nút "Dán ảnh" + Ctrl/⌘ + V.
+Cần HTTPS (Netlify đã có) hoặc `localhost`. Code: `web/src/attach/useClipboardWatcher.ts`, `AutoPaste.tsx`, `SuggestionPopup.tsx`.
+Quyền cấp theo từng domain: mỗi URL ngrok mới sẽ phải cho phép lại.
+
 Hai ví dụ trong cùng một app:
 
 - **Ví dụ 1 – Có ô đính kèm** (`/#vi-du-1`): nút "📋 Dán ảnh" + sự kiện `paste`, chọn ô theo thứ tự: ô đang focus → modal đang mở → ô chính.
@@ -44,6 +57,20 @@ Kết quả nằm trong `web/dist/`. Xem thử bản build:
 
 ```bash
 npm run preview
+```
+
+### Chia sẻ tạm qua ngrok
+
+`vite.config.ts` đã cho phép các domain `*.ngrok-free.app`, `*.ngrok.app`, `*.ngrok.io`.
+Nên chạy bản build (tải nhanh hơn nhiều so với dev server qua ngrok):
+
+```bash
+cd web
+npm run build && npm run preview -- --port 4173
+```
+
+```bash
+ngrok http 4173
 ```
 
 ### Deploy Netlify
@@ -74,6 +101,17 @@ npx netlify-cli deploy --prod --dir=dist
 - Trang có ô đính kèm: chip "📋 Dán ảnh vừa copy" cạnh nút đính kèm.
 - Trang không có ô đính kèm: banner cuối màn hình → màn hình chọn đích đến.
 - Nút 🧪 trên thanh tiêu đề: đưa một ảnh test vào clipboard để demo trên máy ảo.
+- **Nhận share ảnh (Android):** SnapDrop có trong bảng Share của Zalo, Ảnh, Files… (1 hoặc nhiều ảnh).
+  App mở thẳng màn hình chọn đích, bỏ qua kiểm tra clipboard. Nếu đang mở trang có ô đính kèm,
+  mục "Trang đang mở: YC-1023…" được đưa lên đầu; chọn mục đó thì ảnh vào thẳng ô đính kèm của trang.
+  Code: `intent-filter` SEND/SEND_MULTIPLE trong `AndroidManifest.xml`, xử lý trong `MainActivity.kt`
+  (channel `snapdrop/share`), phía Dart ở `lib/share/share_receiver.dart`.
+
+#### Thử share trên máy ảo Android
+
+Mở app Ảnh (Google Photos) → chọn ảnh → **Share** → **SnapDrop**.
+Lưu ý: không dùng được `adb shell am start -a SEND` với URI `content://media/...`,
+vì shell không có quyền cấp quyền đọc ảnh cho app.
 
 ### Cài SDK và thư viện
 
@@ -147,12 +185,13 @@ moblie/
   lib/clipboard/          ClipboardWatcher – phát hiện ảnh mới, độ tươi, ID đã xử lý
   lib/attach/             AttachRegistry (chọn ô nhận ảnh), AttachmentBox (chip dán ảnh)
   lib/screens/            Chi tiết YC, Danh sách, Chọn đích đến, Form đích
+  lib/share/              ShareReceiver – nhận ảnh share (Android)
   android/.../MainActivity.kt   Native channel Android
   ios/Runner/AppDelegate.swift  Native channel iOS
 ```
 
 ## Chưa làm
 
-- Nhận share ảnh từ Zalo (màn hình chọn đích đã hỗ trợ mục "Trang đang mở", chưa có phần native nhận share).
+- Nhận share ảnh trên **iOS** (cần Share Extension + App Group). Android đã làm.
 - Nút 📎 chọn ảnh từ thư viện, upload thật (hiện đang giả lập tiến trình).
 - Đánh dấu ảnh đã xử lý khi người dùng tự nhấn giữ → Dán.

@@ -34,6 +34,8 @@ export function AttachmentBox({ label, primary, placeholder, submitLabel = 'Gử
     const next = files.map((file) => ({ id: `a${++seq}`, file, url: URL.createObjectURL(file), progress: 0 }))
     setItems((prev) => [...prev, ...next])
     next.forEach((a) => fakeUpload(a.id))
+    const ids = new Set(next.map((a) => a.id))
+    return () => setItems((prev) => prev.filter((a) => !ids.has(a.id)))
   }
 
   // Upload nền ngay khi ảnh được thêm vào ô (giả lập).

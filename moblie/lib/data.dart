@@ -60,6 +60,9 @@ class AppState extends ChangeNotifier {
   Role role = Role.sales;
   final recent = <String>['YC-1023', 'YC-1019'];
 
+  /// Trang có ô đính kèm đang mở (để đưa lên đầu khi nhận share).
+  Ticket? currentPage;
+
   /// Ảnh chờ: lưu lại để quyết định đính kèm vào đâu sau.
   final pending = <Uint8List>[];
 

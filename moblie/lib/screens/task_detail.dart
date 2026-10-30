@@ -25,6 +25,18 @@ class TaskDetailScreen extends StatefulWidget {
 
 class _TaskDetailScreenState extends State<TaskDetailScreen> {
   final ticket = tickets.first;
+  @override
+  void initState() {
+    super.initState();
+    appState.currentPage = ticket;
+  }
+
+  @override
+  void dispose() {
+    if (appState.currentPage == ticket) appState.currentPage = null;
+    super.dispose();
+  }
+
   final _posts = [_Post('Anh Tuấn (Kỹ thuật)', 'Đã khảo sát, cần thêm ảnh vị trí đặt máy.', const [])];
 
   void _post(String text, List<Uint8List> images, {String? tag}) =>

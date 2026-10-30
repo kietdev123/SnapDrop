@@ -2,12 +2,15 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
+import '../attach/attach_registry.dart';
 import '../data.dart';
 import 'target_form.dart';
 
 /// Màn hình chọn đích đến – dùng chung cho banner, share từ Zalo và "Ảnh chờ".
 class DestinationPicker extends StatefulWidget {
-  const DestinationPicker({super.key, this.currentPage, this.allowSavePending = true});
+  const DestinationPicker({super.key, this.count = 1, this.currentPage, this.allowSavePending = true});
+
+  final int count;
 
   /// Khi vào từ share: trang có ô đính kèm đang mở được đưa lên đầu.
   final Ticket? currentPage;
@@ -30,7 +33,7 @@ class _DestinationPickerState extends State<DestinationPicker> {
     void pick(Destination d) => Navigator.pop(context, d);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Đính kèm vào…')),
+      appBar: AppBar(title: Text('Đính kèm ${widget.count} ảnh vào…')),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
@@ -99,37 +102,48 @@ class _Header extends StatelessWidget {
 }
 
 /// Luồng đầy đủ: chọn đích → đọc ảnh → mở form đích với ảnh đã đính kèm sẵn.
-/// [loadImage] chỉ được gọi sau khi người dùng đã chọn (lúc này mới đọc clipboard).
+/// [loadImages] chỉ được gọi sau khi người dùng đã chọn (lúc này mới đọc clipboard).
+/// [currentPage]: khi vào từ share, trang có ô đính kèm đang mở được đưa lên đầu;
+/// chọn nó thì ảnh vào thẳng ô đính kèm của trang đó.
 Future<void> runDestinationFlow(
   BuildContext context, {
-  required Future<Uint8List?> Function() loadImage,
+  required Future<List<Uint8List>> Function() loadImages,
+  int count = 1,
+  Ticket? currentPage,
   VoidCallback? onUsed,
   bool allowSavePending = true,
 }) async {
   final dest = await Navigator.push<Destination>(
     context,
-    MaterialPageRoute(builder: (_) => DestinationPicker(allowSavePending: allowSavePending)),
+    MaterialPageRoute(
+      builder: (_) => DestinationPicker(count: count, currentPage: currentPage, allowSavePending: allowSavePending),
+    ),
   );
   if (dest == null || !context.mounted) return;
 
-  final bytes = await loadImage();
+  final images = await loadImages();
   if (!context.mounted) return;
-  if (bytes == null) {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không đọc được ảnh từ clipboard.')));
+  final messenger = ScaffoldMessenger.of(context);
+  if (images.isEmpty) {
+    messenger.showSnackBar(const SnackBar(content: Text('Không đọc được ảnh.')));
     return;
   }
   onUsed?.call();
 
   if (dest is SavePendingDestination) {
-    appState.addPending(bytes);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã lưu vào Ảnh chờ')));
+    images.forEach(appState.addPending);
+    messenger.showSnackBar(SnackBar(content: Text('Đã lưu ${images.length} ảnh vào Ảnh chờ')));
+    return;
+  }
+  final target = attachRegistry.target;
+  if (dest is TicketDestination && dest.ticket == currentPage && target != null) {
+    images.forEach(target.add);
+    messenger.showSnackBar(SnackBar(content: Text('Đã thêm ${images.length} ảnh vào ${target.label}')));
     return;
   }
   final sent = await Navigator.push<String>(
     context,
-    MaterialPageRoute(builder: (_) => TargetForm(destination: dest, images: [bytes])),
+    MaterialPageRoute(builder: (_) => TargetForm(destination: dest, images: images)),
   );
-  if (sent != null && context.mounted) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(sent)));
-  }
+  if (sent != null) messenger.showSnackBar(SnackBar(content: Text(sent)));
 }

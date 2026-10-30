@@ -78,7 +78,7 @@ class ClipBanner extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     onTap: () => runDestinationFlow(
                       context,
-                      loadImage: clipboardWatcher.readImage,
+                      loadImages: () async => [?await clipboardWatcher.readImage()],
                       onUsed: () => clipboardWatcher.markHandled(s.id),
                     ),
                     child: Padding(
@@ -122,7 +122,7 @@ class _PendingTile extends StatelessWidget {
         onTap: () => runDestinationFlow(
           context,
           allowSavePending: false,
-          loadImage: () async => bytes,
+          loadImages: () async => [bytes],
           onUsed: () => appState.removePending(bytes),
         ),
         child: Stack(

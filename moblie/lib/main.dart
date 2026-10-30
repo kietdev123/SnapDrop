@@ -1,15 +1,42 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 
 import 'clipboard/clipboard_watcher.dart';
 import 'data.dart';
+import 'screens/destination_picker.dart';
 import 'screens/task_detail.dart';
 import 'screens/ticket_list.dart';
+import 'share/share_receiver.dart';
 import 'test_image.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await clipboardWatcher.start();
   runApp(const SnapDropApp());
+  // Chờ frame đầu để Navigator sẵn sàng (trường hợp app mở nguội từ share).
+  WidgetsBinding.instance.addPostFrameCallback((_) => ShareReceiver.start(_onShared));
+}
+
+/// Share dùng chung màn hình chọn đích đến, bỏ qua bước kiểm tra clipboard.
+Future<void> _onShared(List<Uint8List> images) async {
+  final context = navigatorKey.currentState?.overlay?.context;
+  if (context == null) return;
+  // Đóng picker/form đang mở dở (nếu có) để quay về trang gốc.
+  navigatorKey.currentState!.popUntil((r) => r.isFirst);
+  clipboardWatcher.paused = true;
+  try {
+    await runDestinationFlow(
+      context,
+      count: images.length,
+      currentPage: appState.currentPage,
+      loadImages: () async => images,
+    );
+  } finally {
+    clipboardWatcher.paused = false;
+  }
 }
 
 class SnapDropApp extends StatelessWidget {
@@ -19,6 +46,7 @@ class SnapDropApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SnapDrop',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorSchemeSeed: const Color(0xFF6D4AFF), useMaterial3: true),
       home: const HomeScreen(),

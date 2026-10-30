@@ -28,6 +28,9 @@ class ClipboardWatcher extends ChangeNotifier with WidgetsBindingObserver {
   ClipSuggestion? _suggestion;
   ClipSuggestion? get suggestion => _suggestion;
 
+  /// Đang xử lý ảnh share → bỏ qua kiểm tra clipboard.
+  bool paused = false;
+
   late SharedPreferences _prefs;
   final _handled = <String>{};
   final _firstSeen = <String, int>{};
@@ -50,6 +53,7 @@ class ClipboardWatcher extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   Future<void> check() async {
+    if (paused) return;
     Map<String, dynamic>? r;
     try {
       r = await _channel.invokeMapMethod<String, dynamic>('peek');

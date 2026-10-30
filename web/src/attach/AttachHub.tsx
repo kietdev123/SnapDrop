@@ -11,7 +11,8 @@ export type BoxRegistration = {
   primary?: boolean
   layer: number
   element: () => HTMLElement | null
-  add: (files: File[]) => void
+  // Trả về hàm hoàn tác (bỏ các ảnh vừa thêm).
+  add: (files: File[]) => () => void
 }
 
 type Hub = {
@@ -33,9 +34,11 @@ type Props = {
   children: ReactNode
   // Nhánh 2b: trang không có ô đính kèm nào nhận ảnh.
   onOrphanImages: (files: File[]) => void
+  // Mọi lần người dùng tự dán ảnh (để đánh dấu ảnh đó đã xử lý).
+  onPasted?: (files: File[]) => void
 }
 
-export function AttachHubProvider({ children, onOrphanImages }: Props) {
+export function AttachHubProvider({ children, onOrphanImages, onPasted }: Props) {
   const boxes = useRef(new Map<string, BoxRegistration>())
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [boxCount, setBoxCount] = useState(0)
@@ -80,13 +83,14 @@ export function AttachHubProvider({ children, onOrphanImages }: Props) {
       const files = imagesFromPaste(e)
       if (files.length === 0) return // dán chữ: để trình duyệt xử lý bình thường
       e.preventDefault()
+      onPasted?.(files)
       const target = pickTarget()
       if (target) target.add(files)
       else onOrphanImages(files)
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [pickTarget, onOrphanImages])
+  }, [pickTarget, onOrphanImages, onPasted])
 
   return (
     <HubContext.Provider value={{ register, pickTarget, focusedId, boxCount }}>{children}</HubContext.Provider>
